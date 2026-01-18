@@ -6,7 +6,11 @@ import {
   Platform,
   SetMetadataResult,
 } from './appstoreconnect.js';
-import {GooglePlayApp} from './googleplay.js';
+import {
+  GooglePlayApp,
+  GooglePlayMetadata,
+  GooglePlaySetMetadataResult,
+} from './googleplay.js';
 
 export interface OutputOptions {
   json?: boolean;
@@ -267,5 +271,97 @@ export function outputGooglePlayAppList(
     console.log(`  ${app.displayName}`);
     console.log(`    Package: ${app.packageName}`);
     console.log();
+  }
+}
+
+export function outputGooglePlayMetadata(
+  metadata: GooglePlayMetadata,
+  language: string | undefined,
+  options: OutputOptions
+): void {
+  const showFull = !!language;
+  const listings = language
+    ? metadata.listings.filter(l => l.language === language)
+    : metadata.listings;
+
+  if (language && listings.length === 0) {
+    const error = {
+      error: 'Language not found',
+      language,
+      availableLanguages: metadata.listings.map(l => l.language),
+    };
+    if (options.json) {
+      outputJson(error);
+    } else {
+      console.error(`Language not found: ${language}`);
+      console.log(
+        `Available languages: ${metadata.listings.map(l => l.language).join(', ')}`
+      );
+    }
+    process.exit(1);
+  }
+
+  const data = {
+    packageName: metadata.packageName,
+    defaultLanguage: metadata.defaultLanguage,
+    listings,
+  };
+
+  if (options.json) {
+    outputJson(data);
+    return;
+  }
+
+  console.log(`Package: ${data.packageName}`);
+  if (data.defaultLanguage) {
+    console.log(`Default Language: ${data.defaultLanguage}`);
+  }
+  console.log();
+
+  for (const listing of listings) {
+    console.log(`--- ${listing.language} ---`);
+    if (listing.title) console.log(`Title: ${listing.title}`);
+    if (listing.shortDescription) {
+      console.log(`Short Description: ${listing.shortDescription}`);
+    }
+    if (listing.fullDescription) {
+      if (showFull) {
+        console.log(`Full Description:\n${listing.fullDescription}`);
+      } else {
+        const truncated =
+          listing.fullDescription.length > 200
+            ? listing.fullDescription.substring(0, 200) + '...'
+            : listing.fullDescription;
+        console.log(`Full Description: ${truncated}`);
+      }
+    }
+    if (listing.video) console.log(`Video: ${listing.video}`);
+    console.log();
+  }
+}
+
+export function outputGooglePlaySetMetadataResult(
+  result: GooglePlaySetMetadataResult,
+  options: OutputOptions
+): void {
+  if (options.json) {
+    outputJson(result);
+    return;
+  }
+
+  const total = result.listingsUpdated.length + result.listingsCreated.length;
+
+  if (total === 0) {
+    console.log('No changes made.');
+    return;
+  }
+
+  console.log('Metadata updated successfully:\n');
+
+  if (result.listingsUpdated.length > 0) {
+    console.log(`  Listings updated: ${result.listingsUpdated.join(', ')}`);
+  }
+  if (result.listingsCreated.length > 0) {
+    console.log(`  Listings created: ${result.listingsCreated.join(', ')}`);
   }
 }

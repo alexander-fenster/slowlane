@@ -11,10 +11,13 @@ import {
 import {
   outputAppList,
   outputGooglePlayAppList,
+  outputGooglePlayMetadata,
+  outputGooglePlaySetMetadataResult,
   outputMetadata,
   outputSetMetadataResult,
   outputVersion,
 } from './output.js';
+import {GooglePlayListing} from './googleplay.js';
 import {GooglePlayClient} from './googleplay.js';
 
 interface GlobalOptions {
@@ -47,6 +50,17 @@ interface CreateVersionOptions extends GlobalOptions {
 interface SetMetadataOptions extends GlobalOptions {
   bundleId: string;
   filename: string;
+}
+
+interface GoogleMetadataOptions extends GlobalOptions {
+  packageName: string;
+  language?: string;
+}
+
+interface GoogleSetMetadataOptions extends GlobalOptions {
+  packageName: string;
+  filename: string;
+  sendForReview?: boolean;
 }
 
 const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
@@ -168,24 +182,95 @@ const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
   },
 };
 
+function requireGoogleConfig(argv: {config?: string}) {
+  const {config, configDir} = loadConfig(argv.config);
+  if (!config.google_play) {
+    throw new Error('Missing [google_play] section in config');
+  }
+  return {config: config.google_play, configDir};
+}
+
 const googleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
   command: 'google',
   describe: 'Google Play commands',
   builder: (y: Argv<GlobalOptions>) => {
-    return y.command({
-      command: 'list-apps',
-      describe: 'List all configured apps',
-      handler: async (argv: ArgumentsCamelCase<GlobalOptions>) => {
-        const {config, configDir} = loadConfig(argv.config);
-        if (!config.google_play) {
-          throw new Error('Missing [google_play] section in config');
-        }
-        const client = new GooglePlayClient(config.google_play, configDir);
+    return y
+      .command({
+        command: 'list-apps',
+        describe: 'List all apps',
+        handler: async (argv: ArgumentsCamelCase<GlobalOptions>) => {
+          const {config, configDir} = requireGoogleConfig(argv);
+          const client = new GooglePlayClient(config, configDir);
 
-        const apps = await client.listApps();
-        outputGooglePlayAppList(apps, {json: argv.json});
-      },
-    });
+          const apps = await client.listApps();
+          outputGooglePlayAppList(apps, {json: argv.json});
+        },
+      })
+      .command({
+        command: 'get-metadata <packageName> [language]',
+        describe: 'Get app metadata (all languages, or full details for one)',
+        builder: yargs =>
+          yargs
+            .positional('packageName', {
+              describe: 'The package name of the app',
+              type: 'string',
+              demandOption: true,
+            })
+            .positional('language', {
+              describe: 'Language to show in full (e.g., en-US)',
+              type: 'string',
+            }),
+        handler: async (argv: ArgumentsCamelCase<GoogleMetadataOptions>) => {
+          const {config, configDir} = requireGoogleConfig(argv);
+          const client = new GooglePlayClient(config, configDir);
+
+          const metadata = await client.getMetadata(argv.packageName);
+          outputGooglePlayMetadata(metadata, argv.language, {json: argv.json});
+        },
+      })
+      .command({
+        command: 'set-metadata <packageName>',
+        describe: 'Update app metadata from a JSON file',
+        builder: yargs =>
+          yargs
+            .positional('packageName', {
+              describe: 'The package name of the app',
+              type: 'string',
+              demandOption: true,
+            })
+            .option('filename', {
+              alias: 'f',
+              describe:
+                'JSON file containing metadata (same format as get-metadata output)',
+              type: 'string',
+              demandOption: true,
+            })
+            .option('send-for-review', {
+              describe: 'Send changes for review immediately',
+              type: 'boolean',
+              default: false,
+            }),
+        handler: async (argv: ArgumentsCamelCase<GoogleSetMetadataOptions>) => {
+          const {config, configDir} = requireGoogleConfig(argv);
+          const client = new GooglePlayClient(config, configDir);
+
+          const fileContent = fs.readFileSync(argv.filename, 'utf-8');
+          const metadata = JSON.parse(fileContent) as {
+            listings: GooglePlayListing[];
+          };
+
+          if (!metadata.listings || !Array.isArray(metadata.listings)) {
+            throw new Error('Invalid metadata file: expected "listings" array');
+          }
+
+          const result = await client.setMetadata(
+            argv.packageName,
+            metadata.listings,
+            {sendForReview: argv.sendForReview}
+          );
+          outputGooglePlaySetMetadataResult(result, {json: argv.json});
+        },
+      });
   },
   handler: () => {
     console.log('Use "slowlane google --help" for available commands');
