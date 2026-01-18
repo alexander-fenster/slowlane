@@ -133,8 +133,10 @@ interface AppStoreVersionLocalizationsResponse {
 }
 
 // App Store Version types
+export type Platform = 'IOS' | 'MAC_OS' | 'TV_OS' | 'VISION_OS';
+
 interface AppStoreVersionAttributes {
-  platform: string;
+  platform: Platform;
   versionString: string;
   appStoreState: string;
   appVersionState: string;
@@ -145,7 +147,7 @@ interface AppStoreVersionAttributes {
   createdDate: string;
 }
 
-interface AppStoreVersion {
+export interface AppStoreVersion {
   type: 'appStoreVersions';
   id: string;
   attributes: AppStoreVersionAttributes;
@@ -161,7 +163,8 @@ interface AppStoreVersionsResponse {
 export interface AppMetadata {
   app: App;
   appInfo: AppInfo;
-  latestVersion?: AppStoreVersion;
+  liveVersion?: AppStoreVersion;
+  editableVersion?: AppStoreVersion;
   localizations: LocalizedMetadata[];
 }
 
@@ -211,15 +214,20 @@ export class AppStoreConnectClient {
     });
   }
 
-  private async request<T>(endpoint: string): Promise<T> {
+  private async request<T>(
+    endpoint: string,
+    options?: {method?: string; body?: unknown}
+  ): Promise<T> {
     const token = this.generateToken();
     const url = `${this.baseUrl}${endpoint}`;
 
     const response = await fetch(url, {
+      method: options?.method ?? 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
+      body: options?.body ? JSON.stringify(options.body) : undefined,
     });
 
     if (!response.ok) {
@@ -258,7 +266,10 @@ export class AppStoreConnectClient {
     return response.data[0] ?? null;
   }
 
-  async getAppMetadata(bundleId: string): Promise<AppMetadata> {
+  async getAppMetadata(
+    bundleId: string,
+    fromVersion: 'live' | 'editable' = 'editable'
+  ): Promise<AppMetadata> {
     const app = await this.getAppByBundleId(bundleId);
     if (!app) {
       throw new Error(`App not found with bundle ID: ${bundleId}`);
@@ -268,7 +279,17 @@ export class AppStoreConnectClient {
     const appInfosResponse = await this.request<AppInfosResponse>(
       `/apps/${app.id}/appInfos`
     );
-    const appInfo = appInfosResponse.data[0];
+    // Find live and editable appInfos
+    const liveAppInfo = appInfosResponse.data.find(
+      info => info.attributes.appStoreState === 'READY_FOR_SALE'
+    );
+    const editableAppInfo = appInfosResponse.data.find(
+      info => info.attributes.appStoreState !== 'READY_FOR_SALE'
+    );
+    const appInfo =
+      fromVersion === 'live'
+        ? (liveAppInfo ?? editableAppInfo)
+        : (editableAppInfo ?? liveAppInfo);
     if (!appInfo) {
       throw new Error(`No app info found for app: ${bundleId}`);
     }
@@ -276,21 +297,37 @@ export class AppStoreConnectClient {
     // Get app info localizations (name, subtitle, privacy policy)
     const appInfoLocalizationsResponse =
       await this.request<AppInfoLocalizationsResponse>(
-        `/appInfos/${appInfo.id}/appInfoLocalizations`
+        `/appInfos/${appInfo.id}/appInfoLocalizations?limit=200`
       );
 
-    // Get latest app store version for each platform
+    // Get app store versions to find live and editable versions
     const versionsResponse = await this.request<AppStoreVersionsResponse>(
-      `/apps/${app.id}/appStoreVersions?filter[platform]=IOS&limit=1`
+      `/apps/${app.id}/appStoreVersions?limit=10`
     );
-    const latestVersion = versionsResponse.data[0];
 
-    // Get version localizations (description, keywords, what's new)
+    // Find live version (READY_FOR_SALE) and editable version (PREPARE_FOR_SUBMISSION, etc.)
+    const liveVersion = versionsResponse.data.find(
+      v => v.attributes.appStoreState === 'READY_FOR_SALE'
+    );
+    const editableVersion = versionsResponse.data.find(v =>
+      [
+        'PREPARE_FOR_SUBMISSION',
+        'WAITING_FOR_REVIEW',
+        'IN_REVIEW',
+        'PENDING_DEVELOPER_RELEASE',
+      ].includes(v.attributes.appStoreState)
+    );
+
+    // Get version localizations from the requested version
+    const versionForLocalizations =
+      fromVersion === 'live'
+        ? (liveVersion ?? editableVersion)
+        : (editableVersion ?? liveVersion);
     let versionLocalizations: AppStoreVersionLocalization[] = [];
-    if (latestVersion) {
+    if (versionForLocalizations) {
       const versionLocalizationsResponse =
         await this.request<AppStoreVersionLocalizationsResponse>(
-          `/appStoreVersions/${latestVersion.id}/appStoreVersionLocalizations`
+          `/appStoreVersions/${versionForLocalizations.id}/appStoreVersionLocalizations`
         );
       versionLocalizations = versionLocalizationsResponse.data;
     }
@@ -329,8 +366,323 @@ export class AppStoreConnectClient {
     return {
       app,
       appInfo,
-      latestVersion,
+      liveVersion,
+      editableVersion,
       localizations,
     };
   }
+
+  async getLatestVersion(bundleId: string): Promise<AppStoreVersion | null> {
+    const app = await this.getAppByBundleId(bundleId);
+    if (!app) {
+      throw new Error(`App not found with bundle ID: ${bundleId}`);
+    }
+
+    // Get most recent version (sorted by createdDate desc by default)
+    const response = await this.request<AppStoreVersionsResponse>(
+      `/apps/${app.id}/appStoreVersions?limit=1`
+    );
+
+    return response.data[0] ?? null;
+  }
+
+  async createVersion(
+    bundleId: string,
+    versionString: string,
+    platform?: Platform
+  ): Promise<AppStoreVersion> {
+    const app = await this.getAppByBundleId(bundleId);
+    if (!app) {
+      throw new Error(`App not found with bundle ID: ${bundleId}`);
+    }
+
+    // If no platform specified, copy from latest version
+    let targetPlatform: Platform = platform ?? 'IOS';
+    if (!platform) {
+      const latestVersion = await this.getLatestVersion(bundleId);
+      if (latestVersion) {
+        targetPlatform = latestVersion.attributes.platform;
+      }
+    }
+
+    const body = {
+      data: {
+        type: 'appStoreVersions',
+        attributes: {
+          platform: targetPlatform,
+          versionString,
+        },
+        relationships: {
+          app: {
+            data: {type: 'apps', id: app.id},
+          },
+        },
+      },
+    };
+
+    const response = await this.request<{data: AppStoreVersion}>(
+      '/appStoreVersions',
+      {method: 'POST', body}
+    );
+
+    return response.data;
+  }
+
+  async setMetadata(
+    bundleId: string,
+    localizations: LocalizedMetadata[]
+  ): Promise<SetMetadataResult> {
+    // Validate field lengths before making any API calls
+    const validationErrors: string[] = [];
+    for (const loc of localizations) {
+      if (loc.name && loc.name.length > 30) {
+        validationErrors.push(
+          `${loc.locale}: name exceeds 30 characters (${loc.name.length})`
+        );
+      }
+      if (loc.subtitle && loc.subtitle.length > 30) {
+        validationErrors.push(
+          `${loc.locale}: subtitle exceeds 30 characters (${loc.subtitle.length})`
+        );
+      }
+      if (loc.keywords && loc.keywords.length > 100) {
+        validationErrors.push(
+          `${loc.locale}: keywords exceeds 100 characters (${loc.keywords.length})`
+        );
+      }
+    }
+    if (validationErrors.length > 0) {
+      throw new Error(
+        `Validation failed:\n  ${validationErrors.join('\n  ')}`
+      );
+    }
+
+    const app = await this.getAppByBundleId(bundleId);
+    if (!app) {
+      throw new Error(`App not found with bundle ID: ${bundleId}`);
+    }
+
+    // Get app info for app-level localizations - find the editable one
+    const appInfosResponse = await this.request<AppInfosResponse>(
+      `/apps/${app.id}/appInfos`
+    );
+    // Find editable appInfo (not READY_FOR_SALE)
+    const editableAppInfo = appInfosResponse.data.find(
+      info => info.attributes.appStoreState !== 'READY_FOR_SALE'
+    );
+    if (!editableAppInfo) {
+      throw new Error(
+        'No editable app info found. Create a new version first with create-version.'
+      );
+    }
+    const appInfo = editableAppInfo;
+
+    // Get existing app info localizations (limit=200 to avoid pagination issues)
+    const appInfoLocResponse = await this.request<AppInfoLocalizationsResponse>(
+      `/appInfos/${appInfo.id}/appInfoLocalizations?limit=200`
+    );
+    const existingAppInfoLocs = new Map(
+      appInfoLocResponse.data.map(l => [l.attributes.locale, l])
+    );
+
+    // Get editable version for version-level localizations
+    const versionsResponse = await this.request<AppStoreVersionsResponse>(
+      `/apps/${app.id}/appStoreVersions?limit=10`
+    );
+    const editableVersion = versionsResponse.data.find(v =>
+      [
+        'PREPARE_FOR_SUBMISSION',
+        'WAITING_FOR_REVIEW',
+        'IN_REVIEW',
+        'PENDING_DEVELOPER_RELEASE',
+      ].includes(v.attributes.appStoreState)
+    );
+
+    if (!editableVersion) {
+      throw new Error(
+        'No editable version found. Create a new version first with create-version.'
+      );
+    }
+
+    // Get existing version localizations (limit=200 to avoid pagination issues)
+    const versionLocResponse =
+      await this.request<AppStoreVersionLocalizationsResponse>(
+        `/appStoreVersions/${editableVersion.id}/appStoreVersionLocalizations?limit=200`
+      );
+    const existingVersionLocs = new Map(
+      versionLocResponse.data.map(l => [l.attributes.locale, l])
+    );
+
+    const results: SetMetadataResult = {
+      appInfoLocalizationsUpdated: [],
+      appInfoLocalizationsCreated: [],
+      versionLocalizationsUpdated: [],
+      versionLocalizationsCreated: [],
+    };
+
+    for (const loc of localizations) {
+      // Update or create app info localization (name, subtitle, privacyPolicyUrl)
+      const appInfoAttrs: Record<string, string | null> = {};
+      if ('name' in loc) appInfoAttrs.name = loc.name ?? null;
+      if ('subtitle' in loc) appInfoAttrs.subtitle = loc.subtitle ?? null;
+      if ('privacyPolicyUrl' in loc)
+        appInfoAttrs.privacyPolicyUrl = loc.privacyPolicyUrl ?? null;
+
+      const hasAppInfoFields = Object.keys(appInfoAttrs).length > 0;
+      if (hasAppInfoFields) {
+        const existingAppInfoLoc = existingAppInfoLocs.get(loc.locale);
+
+        if (existingAppInfoLoc) {
+          await this.request(`/appInfoLocalizations/${existingAppInfoLoc.id}`, {
+            method: 'PATCH',
+            body: {
+              data: {
+                type: 'appInfoLocalizations',
+                id: existingAppInfoLoc.id,
+                attributes: appInfoAttrs,
+              },
+            },
+          });
+          results.appInfoLocalizationsUpdated.push(loc.locale);
+        } else {
+          // Try to create, but handle duplicate error by falling back to PATCH
+          try {
+            await this.request('/appInfoLocalizations', {
+              method: 'POST',
+              body: {
+                data: {
+                  type: 'appInfoLocalizations',
+                  attributes: {locale: loc.locale, ...appInfoAttrs},
+                  relationships: {
+                    appInfo: {data: {type: 'appInfos', id: appInfo.id}},
+                  },
+                },
+              },
+            });
+            results.appInfoLocalizationsCreated.push(loc.locale);
+          } catch (error) {
+            // If duplicate error, fetch and PATCH instead
+            if (
+              error instanceof Error &&
+              error.message.includes('DUPLICATE')
+            ) {
+              const refetch = await this.request<AppInfoLocalizationsResponse>(
+                `/appInfos/${appInfo.id}/appInfoLocalizations?filter[locale]=${loc.locale}`
+              );
+              const existing = refetch.data[0];
+              if (existing) {
+                await this.request(`/appInfoLocalizations/${existing.id}`, {
+                  method: 'PATCH',
+                  body: {
+                    data: {
+                      type: 'appInfoLocalizations',
+                      id: existing.id,
+                      attributes: appInfoAttrs,
+                    },
+                  },
+                });
+                results.appInfoLocalizationsUpdated.push(loc.locale);
+              } else {
+                throw error;
+              }
+            } else {
+              throw error;
+            }
+          }
+        }
+      }
+
+      // Update or create version localization
+      const versionAttrs: Record<string, string | null> = {};
+      if ('description' in loc) versionAttrs.description = loc.description ?? null;
+      if ('keywords' in loc) versionAttrs.keywords = loc.keywords ?? null;
+      if ('whatsNew' in loc) versionAttrs.whatsNew = loc.whatsNew ?? null;
+      if ('promotionalText' in loc)
+        versionAttrs.promotionalText = loc.promotionalText ?? null;
+      if ('marketingUrl' in loc) versionAttrs.marketingUrl = loc.marketingUrl ?? null;
+      if ('supportUrl' in loc) versionAttrs.supportUrl = loc.supportUrl ?? null;
+
+      const hasVersionFields = Object.keys(versionAttrs).length > 0;
+      if (hasVersionFields) {
+        const existingVersionLoc = existingVersionLocs.get(loc.locale);
+
+        if (existingVersionLoc) {
+          await this.request(
+            `/appStoreVersionLocalizations/${existingVersionLoc.id}`,
+            {
+              method: 'PATCH',
+              body: {
+                data: {
+                  type: 'appStoreVersionLocalizations',
+                  id: existingVersionLoc.id,
+                  attributes: versionAttrs,
+                },
+              },
+            }
+          );
+          results.versionLocalizationsUpdated.push(loc.locale);
+        } else {
+          // Try to create, but handle duplicate error by falling back to PATCH
+          try {
+            await this.request('/appStoreVersionLocalizations', {
+              method: 'POST',
+              body: {
+                data: {
+                  type: 'appStoreVersionLocalizations',
+                  attributes: {locale: loc.locale, ...versionAttrs},
+                  relationships: {
+                    appStoreVersion: {
+                      data: {type: 'appStoreVersions', id: editableVersion.id},
+                    },
+                  },
+                },
+              },
+            });
+            results.versionLocalizationsCreated.push(loc.locale);
+          } catch (error) {
+            // If duplicate error, fetch and PATCH instead
+            if (
+              error instanceof Error &&
+              error.message.includes('DUPLICATE')
+            ) {
+              const refetch =
+                await this.request<AppStoreVersionLocalizationsResponse>(
+                  `/appStoreVersions/${editableVersion.id}/appStoreVersionLocalizations?filter[locale]=${loc.locale}`
+                );
+              const existing = refetch.data[0];
+              if (existing) {
+                await this.request(
+                  `/appStoreVersionLocalizations/${existing.id}`,
+                  {
+                    method: 'PATCH',
+                    body: {
+                      data: {
+                        type: 'appStoreVersionLocalizations',
+                        id: existing.id,
+                        attributes: versionAttrs,
+                      },
+                    },
+                  }
+                );
+                results.versionLocalizationsUpdated.push(loc.locale);
+              } else {
+                throw error;
+              }
+            } else {
+              throw error;
+            }
+          }
+        }
+      }
+    }
+
+    return results;
+  }
+}
+
+export interface SetMetadataResult {
+  appInfoLocalizationsUpdated: string[];
+  appInfoLocalizationsCreated: string[];
+  versionLocalizationsUpdated: string[];
+  versionLocalizationsCreated: string[];
 }
