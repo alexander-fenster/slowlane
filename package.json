@@ -1,6 +1,6 @@
 {
   "name": "slowlane",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Simple CLI for managing App Store and Google Play metadata",
   "main": "build/src/index.js",
   "types": "build/src/index.d.ts",
