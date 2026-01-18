@@ -10,14 +10,24 @@ import {
 } from './appstoreconnect.js';
 import {
   outputAppList,
+  outputGooglePlayAppList,
   outputMetadata,
   outputSetMetadataResult,
   outputVersion,
 } from './output.js';
+import {GooglePlayClient} from './googleplay.js';
 
 interface GlobalOptions {
   config?: string;
   json?: boolean;
+}
+
+function requireAppleConfig(argv: {config?: string}) {
+  const {config, configDir} = loadConfig(argv.config);
+  if (!config.appstore_connect) {
+    throw new Error('Missing [appstore_connect] section in config');
+  }
+  return {config: config.appstore_connect, configDir};
 }
 
 type VersionSource = 'live' | 'editable';
@@ -48,11 +58,8 @@ const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
         command: 'list-apps',
         describe: 'List all apps in App Store Connect',
         handler: async (argv: ArgumentsCamelCase<GlobalOptions>) => {
-          const {config, configDir} = loadConfig(argv.config);
-          const client = new AppStoreConnectClient(
-            config.appstore_connect,
-            configDir
-          );
+          const {config, configDir} = requireAppleConfig(argv);
+          const client = new AppStoreConnectClient(config, configDir);
 
           const apps = await client.listApps();
           outputAppList(apps, {json: argv.json});
@@ -78,11 +85,8 @@ const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
               default: 'editable' as const,
             }),
         handler: async (argv: ArgumentsCamelCase<ShowMetadataOptions>) => {
-          const {config, configDir} = loadConfig(argv.config);
-          const client = new AppStoreConnectClient(
-            config.appstore_connect,
-            configDir
-          );
+          const {config, configDir} = requireAppleConfig(argv);
+          const client = new AppStoreConnectClient(config, configDir);
 
           const metadata = await client.getAppMetadata(argv.bundleId, argv.from);
           outputMetadata(metadata, argv.locale, argv.from, {json: argv.json});
@@ -109,11 +113,8 @@ const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
               type: 'string',
             }),
         handler: async (argv: ArgumentsCamelCase<CreateVersionOptions>) => {
-          const {config, configDir} = loadConfig(argv.config);
-          const client = new AppStoreConnectClient(
-            config.appstore_connect,
-            configDir
-          );
+          const {config, configDir} = requireAppleConfig(argv);
+          const client = new AppStoreConnectClient(config, configDir);
 
           const version = await client.createVersion(
             argv.bundleId,
@@ -140,11 +141,8 @@ const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
               demandOption: true,
             }),
         handler: async (argv: ArgumentsCamelCase<SetMetadataOptions>) => {
-          const {config, configDir} = loadConfig(argv.config);
-          const client = new AppStoreConnectClient(
-            config.appstore_connect,
-            configDir
-          );
+          const {config, configDir} = requireAppleConfig(argv);
+          const client = new AppStoreConnectClient(config, configDir);
 
           const fileContent = fs.readFileSync(argv.filename, 'utf-8');
           const metadata = JSON.parse(fileContent) as {
@@ -170,6 +168,30 @@ const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
   },
 };
 
+const googleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
+  command: 'google',
+  describe: 'Google Play commands',
+  builder: (y: Argv<GlobalOptions>) => {
+    return y.command({
+      command: 'list-apps',
+      describe: 'List all configured apps',
+      handler: async (argv: ArgumentsCamelCase<GlobalOptions>) => {
+        const {config, configDir} = loadConfig(argv.config);
+        if (!config.google_play) {
+          throw new Error('Missing [google_play] section in config');
+        }
+        const client = new GooglePlayClient(config.google_play, configDir);
+
+        const apps = await client.listApps();
+        outputGooglePlayAppList(apps, {json: argv.json});
+      },
+    });
+  },
+  handler: () => {
+    console.log('Use "slowlane google --help" for available commands');
+  },
+};
+
 yargs(hideBin(process.argv))
   .scriptName('slowlane')
   .option('config', {
@@ -183,6 +205,7 @@ yargs(hideBin(process.argv))
     default: false,
   })
   .command(appleCommand)
+  .command(googleCommand)
   .demandCommand(1, 'You need to specify a command')
   .strict()
   .help()

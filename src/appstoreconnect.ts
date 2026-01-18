@@ -9,8 +9,14 @@ export interface AppStoreConnectConfig {
   private_key_path: string;
 }
 
+export interface GooglePlayConfig {
+  service_account_path: string;
+  packages?: string[];
+}
+
 export interface SlowlaneConfig {
-  appstore_connect: AppStoreConnectConfig;
+  appstore_connect?: AppStoreConnectConfig;
+  google_play?: GooglePlayConfig;
 }
 
 // App Store Connect API response types

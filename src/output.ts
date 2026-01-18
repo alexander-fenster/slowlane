@@ -6,6 +6,7 @@ import {
   Platform,
   SetMetadataResult,
 } from './appstoreconnect.js';
+import {GooglePlayApp} from './googleplay.js';
 
 export interface OutputOptions {
   json?: boolean;
@@ -249,5 +250,22 @@ export function outputSetMetadataResult(
     console.log(
       `  Version localizations created: ${result.versionLocalizationsCreated.join(', ')}`
     );
+  }
+}
+
+export function outputGooglePlayAppList(
+  apps: GooglePlayApp[],
+  options: OutputOptions
+): void {
+  if (options.json) {
+    outputJson(apps);
+    return;
+  }
+
+  console.log(`Found ${apps.length} app(s):\n`);
+  for (const app of apps) {
+    console.log(`  ${app.displayName}`);
+    console.log(`    Package: ${app.packageName}`);
+    console.log();
   }
 }
