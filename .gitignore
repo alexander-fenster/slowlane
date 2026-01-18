@@ -4,6 +4,10 @@ build/
 # Dependencies
 node_modules/
 
-# App Store Connect credentials
+# Credentials
 *.p8
 slowlane.toml
+*.json
+!package.json
+!tsconfig.json
+!package-lock.json
