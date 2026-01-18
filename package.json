@@ -1,14 +1,33 @@
 {
   "name": "slowlane",
-  "version": "0.0.0",
-  "description": "",
+  "version": "1.0.0",
+  "description": "Simple CLI for managing App Store and Google Play metadata",
   "main": "build/src/index.js",
   "types": "build/src/index.d.ts",
   "files": [
     "build/src"
   ],
-  "license": "Apache-2.0",
-  "keywords": [],
+  "license": "MIT",
+  "keywords": [
+    "app-store",
+    "google-play",
+    "fastlane",
+    "metadata",
+    "localization",
+    "cli"
+  ],
+  "author": "Alexander Fenster <slowlane@fenster.name>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexander-fenster/slowlane.git"
+  },
+  "homepage": "https://github.com/alexander-fenster/slowlane#readme",
+  "bugs": {
+    "url": "https://github.com/alexander-fenster/slowlane/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "bin": {
     "slowlane": "build/src/index.js"
   },
