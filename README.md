@@ -21,7 +21,7 @@ Fastlane is powerful but complex to set up. Slowlane focuses on one thing: makin
    - **Google Play Developer Reporting API** (for listing apps)
    - **Google Play Android Developer API** (for metadata operations)
 4. Create a Service Account with a JSON key
-5. In [Google Play Console > Setup > API access](https://play.google.com/console/developers/api-access), link the service account and grant "Release to production" permission
+5. In Google Play Console, go to Users and Permissions, invite your service account email, and grant "Manage store presence" and "Releases" permissions
 
 ### Configuration
 
