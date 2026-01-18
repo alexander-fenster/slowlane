@@ -1,0 +1,4 @@
+[appstore_connect]
+issuer_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+key_id = "XXXXXXXXXX"
+private_key_path = "./AuthKey_XXXXXXXXXX.p8"

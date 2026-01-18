@@ -1,0 +1,9 @@
+# Build output
+build/
+
+# Dependencies
+node_modules/
+
+# App Store Connect credentials
+*.p8
+slowlane.toml

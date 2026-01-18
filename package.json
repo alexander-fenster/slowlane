@@ -1,0 +1,38 @@
+{
+  "name": "slowlane",
+  "version": "0.0.0",
+  "description": "",
+  "main": "build/src/index.js",
+  "types": "build/src/index.d.ts",
+  "files": [
+    "build/src"
+  ],
+  "license": "Apache-2.0",
+  "keywords": [],
+  "bin": {
+    "slowlane": "build/src/index.js"
+  },
+  "scripts": {
+    "start": "node build/src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "gts lint",
+    "clean": "gts clean",
+    "compile": "tsc",
+    "fix": "gts fix",
+    "prepare": "npm run compile",
+    "pretest": "npm run compile",
+    "posttest": "npm run lint"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.7.5",
+    "@types/yargs": "^17.0.35",
+    "gts": "^7.0.0",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.3",
+    "toml": "^3.0.0",
+    "yargs": "^18.0.0"
+  }
+}
