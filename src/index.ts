@@ -19,7 +19,12 @@ import {
 } from './output.js';
 import {GooglePlayListing} from './googleplay.js';
 import {GooglePlayClient} from './googleplay.js';
-import {validateAppleLocales, validateGooglePlayLocales} from './locales.js';
+import {
+  APPLE_LOCALES,
+  GOOGLE_PLAY_LOCALES,
+  validateAppleLocales,
+  validateGooglePlayLocales,
+} from './locales.js';
 
 interface GlobalOptions {
   config?: string;
@@ -77,6 +82,19 @@ const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
 
           const apps = await client.listApps();
           outputAppList(apps, {json: argv.json});
+        },
+      })
+      .command({
+        command: 'list-locales',
+        describe: 'List all supported locales for App Store Connect',
+        handler: (argv: ArgumentsCamelCase<GlobalOptions>) => {
+          const locales = Array.from(APPLE_LOCALES).sort();
+          if (argv.json) {
+            console.log(JSON.stringify(locales, null, 2));
+          } else {
+            console.log('Supported locales for App Store Connect:\n');
+            console.log(locales.join('\n'));
+          }
         },
       })
       .command({
@@ -212,6 +230,19 @@ const googleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
 
           const apps = await client.listApps();
           outputGooglePlayAppList(apps, {json: argv.json});
+        },
+      })
+      .command({
+        command: 'list-locales',
+        describe: 'List all supported locales for Google Play',
+        handler: (argv: ArgumentsCamelCase<GlobalOptions>) => {
+          const locales = Array.from(GOOGLE_PLAY_LOCALES).sort();
+          if (argv.json) {
+            console.log(JSON.stringify(locales, null, 2));
+          } else {
+            console.log('Supported locales for Google Play:\n');
+            console.log(locales.join('\n'));
+          }
         },
       })
       .command({

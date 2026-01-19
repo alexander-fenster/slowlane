@@ -53,6 +53,10 @@ slowlane.toml
 # List all apps
 npx slowlane apple list-apps
 
+# List supported locales
+npx slowlane apple list-locales
+npx slowlane apple list-locales --json
+
 # View metadata for all languages (from editable version)
 npx slowlane apple get-metadata com.example.app
 
@@ -75,6 +79,10 @@ npx slowlane apple set-metadata com.example.app -f metadata.json
 # List all apps
 npx slowlane google list-apps
 
+# List supported locales
+npx slowlane google list-locales
+npx slowlane google list-locales --json
+
 # View metadata for all languages
 npx slowlane google get-metadata com.example.app
 
@@ -91,7 +99,7 @@ npx slowlane google set-metadata com.example.app -f metadata.json
 ## Typical Workflow
 
 1. **Export current metadata** from the live version as a starting point
-2. **Edit the JSON** file to update descriptions, keywords, etc.
+2. **Edit the JSON** file to update descriptions, keywords, etc. Use ChatGPT as needed to add translations to new locales. The list of locales supported by Apple and Google can be retrieved by `slowlane apple list-locales` and `slowlane google list-locales`.
 3. **Create a new version** (Apple only - Google doesn't require this for metadata)
 4. **Import the updated metadata** from the JSON file
 5. **Review and submit** in the respective console UI
