@@ -60,7 +60,6 @@ interface GoogleMetadataOptions extends GlobalOptions {
 interface GoogleSetMetadataOptions extends GlobalOptions {
   packageName: string;
   filename: string;
-  sendForReview?: boolean;
 }
 
 const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
@@ -230,7 +229,8 @@ const googleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
       })
       .command({
         command: 'set-metadata <packageName>',
-        describe: 'Update app metadata from a JSON file',
+        describe:
+          'Update app metadata from a JSON file. Changes are sent for review automatically.',
         builder: yargs =>
           yargs
             .positional('packageName', {
@@ -244,11 +244,6 @@ const googleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
                 'JSON file containing metadata (same format as get-metadata output)',
               type: 'string',
               demandOption: true,
-            })
-            .option('send-for-review', {
-              describe: 'Send changes for review immediately',
-              type: 'boolean',
-              default: false,
             }),
         handler: async (argv: ArgumentsCamelCase<GoogleSetMetadataOptions>) => {
           const {config, configDir} = requireGoogleConfig(argv);
@@ -265,8 +260,7 @@ const googleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
 
           const result = await client.setMetadata(
             argv.packageName,
-            metadata.listings,
-            {sendForReview: argv.sendForReview}
+            metadata.listings
           );
           outputGooglePlaySetMetadataResult(result, {json: argv.json});
         },

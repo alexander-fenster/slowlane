@@ -132,10 +132,8 @@ export class GooglePlayClient {
 
   async setMetadata(
     packageName: string,
-    listings: GooglePlayListing[],
-    options: {sendForReview?: boolean} = {}
+    listings: GooglePlayListing[]
   ): Promise<GooglePlaySetMetadataResult> {
-    const {sendForReview = true} = options;
     // Create an edit to make changes
     const editResponse = await this.publisher.edits.insert({packageName});
     const editId = editResponse.data.id!;
@@ -200,7 +198,6 @@ export class GooglePlayClient {
       await this.publisher.edits.commit({
         packageName,
         editId,
-        changesNotSentForReview: !sendForReview,
       });
 
       return result;

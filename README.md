@@ -84,11 +84,8 @@ npx slowlane google get-metadata com.example.app en-US
 # Save metadata to JSON
 npx slowlane google get-metadata com.example.app --json > metadata.json
 
-# Update metadata from JSON (staged, not sent for review)
+# Update metadata from JSON (changes are sent for review automatically)
 npx slowlane google set-metadata com.example.app -f metadata.json
-
-# Update and send for review immediately
-npx slowlane google set-metadata com.example.app -f metadata.json --send-for-review
 ```
 
 ## Typical Workflow
