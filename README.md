@@ -101,3 +101,5 @@ npx slowlane google set-metadata com.example.app -f metadata.json
 Alexander Fenster, slowlane@fenster.name
 
 100% vibe coded with [Claude Code](https://claude.ai/code)
+
+<a href="https://buymeacoffee.com/alexander.fenster"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="40"></a>
