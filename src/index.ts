@@ -19,6 +19,7 @@ import {
 } from './output.js';
 import {GooglePlayListing} from './googleplay.js';
 import {GooglePlayClient} from './googleplay.js';
+import {validateAppleLocales, validateGooglePlayLocales} from './locales.js';
 
 interface GlobalOptions {
   config?: string;
@@ -168,6 +169,14 @@ const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
             );
           }
 
+          const locales = metadata.localizations.map(l => l.locale);
+          const invalidLocales = validateAppleLocales(locales);
+          if (invalidLocales.length > 0) {
+            throw new Error(
+              `Invalid locale(s) for App Store Connect: ${invalidLocales.join(', ')}`
+            );
+          }
+
           const result = await client.setMetadata(
             argv.bundleId,
             metadata.localizations
@@ -256,6 +265,14 @@ const googleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
 
           if (!metadata.listings || !Array.isArray(metadata.listings)) {
             throw new Error('Invalid metadata file: expected "listings" array');
+          }
+
+          const locales = metadata.listings.map(l => l.language);
+          const invalidLocales = validateGooglePlayLocales(locales);
+          if (invalidLocales.length > 0) {
+            throw new Error(
+              `Invalid locale(s) for Google Play: ${invalidLocales.join(', ')}`
+            );
           }
 
           const result = await client.setMetadata(
