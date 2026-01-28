@@ -66,6 +66,7 @@ interface GoogleMetadataOptions extends GlobalOptions {
 interface GoogleSetMetadataOptions extends GlobalOptions {
   packageName: string;
   filename: string;
+  changesNotSentForReview?: boolean;
 }
 
 const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
@@ -284,6 +285,12 @@ const googleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
                 'JSON file containing metadata (same format as get-metadata output)',
               type: 'string',
               demandOption: true,
+            })
+            .option('changesNotSentForReview', {
+              describe:
+                'Commit changes without sending for review (useful when Google requires manual review submission)',
+              type: 'boolean',
+              default: false,
             }),
         handler: async (argv: ArgumentsCamelCase<GoogleSetMetadataOptions>) => {
           const {config, configDir} = requireGoogleConfig(argv);
@@ -308,7 +315,8 @@ const googleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
 
           const result = await client.setMetadata(
             argv.packageName,
-            metadata.listings
+            metadata.listings,
+            {changesNotSentForReview: argv.changesNotSentForReview}
           );
           outputGooglePlaySetMetadataResult(result, {json: argv.json});
         },
