@@ -1,5 +1,11 @@
 # Claude Code Guidelines for Slowlane
 
+## Build and Lint
+
+- Compile: `npm run compile`
+- Lint check: `npx gts check`
+- Lint fix: `npx gts fix`
+
 ## Critical: No Mutating Commands
 
 **NEVER automatically run any slowlane command that modifies App Store Connect state.**
