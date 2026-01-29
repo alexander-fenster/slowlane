@@ -451,6 +451,11 @@ export class AppStoreConnectClient {
           `${loc.locale}: subtitle exceeds 30 characters (${loc.subtitle.length})`
         );
       }
+      if (loc.promotionalText && loc.promotionalText.length > 170) {
+        validationErrors.push(
+          `${loc.locale}: promotional text exceeds 170 characters (${loc.promotionalText.length})`
+        );
+      }
       if (loc.keywords && loc.keywords.length > 100) {
         validationErrors.push(
           `${loc.locale}: keywords exceeds 100 characters (${loc.keywords.length})`
