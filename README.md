@@ -4,6 +4,23 @@ A simple CLI for managing App Store and Google Play metadata.
 
 Fastlane is powerful but complex to set up. Slowlane focuses on one thing: making it easy to update localized metadata (titles, descriptions, keywords) across multiple languages. Screenshots, builds, and submitting for review are left to the respective console UIs.
 
+**Note:** this code is vibe coded with Claude Code, but it's not a "one prompt" project; I was very specific in what I want to get,
+and I'm actually using this tool for managing metadata for my apps, and it saves a lot of time for me, because App Store Connect
+and Play Console are so bad when it comes to managing several localizations at once, and because I never figured out how to use
+Fastlane (maybe it's just not for me).
+
+## Typical Workflow
+
+1. **Export current metadata** from the live version as a starting point
+2. **Edit the JSON** file to update descriptions, keywords, etc. Use ChatGPT as needed to add translations to new locales. The list of locales supported by Apple and Google can be retrieved by `slowlane apple list-locales` and `slowlane google list-locales`.
+3. **Create a new version** (Apple only - Google doesn't require this for metadata)
+4. **Import the updated metadata** from the JSON file
+5. **Review and submit** in the respective console UI
+
+This procedure does not cover writing release notes for Google Play releases; I don't normally need a tool for that because
+ChatGPT can generate the pseudo-XML they require. I might add it to the subsequent versions though (maybe with an OpenAI API
+token in the config, to handle translation).
+
 ## Setup
 
 ### Apple App Store Connect
@@ -95,14 +112,6 @@ npx slowlane google get-metadata com.example.app --json > metadata.json
 # Update metadata from JSON (changes are sent for review automatically)
 npx slowlane google set-metadata com.example.app -f metadata.json
 ```
-
-## Typical Workflow
-
-1. **Export current metadata** from the live version as a starting point
-2. **Edit the JSON** file to update descriptions, keywords, etc. Use ChatGPT as needed to add translations to new locales. The list of locales supported by Apple and Google can be retrieved by `slowlane apple list-locales` and `slowlane google list-locales`.
-3. **Create a new version** (Apple only - Google doesn't require this for metadata)
-4. **Import the updated metadata** from the JSON file
-5. **Review and submit** in the respective console UI
 
 ## Author
 
