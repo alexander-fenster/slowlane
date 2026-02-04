@@ -15,6 +15,7 @@ import {
   outputGooglePlaySetMetadataResult,
   outputMetadata,
   outputSetMetadataResult,
+  outputUpdateMetadata,
   outputVersion,
 } from './output.js';
 import {GooglePlayListing} from './googleplay.js';
@@ -45,6 +46,7 @@ interface ShowMetadataOptions extends GlobalOptions {
   bundleId: string;
   locale?: string;
   from?: VersionSource;
+  forUpdate?: boolean;
 }
 
 interface CreateVersionOptions extends GlobalOptions {
@@ -116,13 +118,23 @@ const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
               describe: 'Which version to fetch localizations from',
               choices: ['live', 'editable'] as const,
               default: 'editable' as const,
+            })
+            .option('for-update', {
+              describe:
+                "Only return what's new and promo text (fields that change between releases)",
+              type: 'boolean',
+              default: false,
             }),
         handler: async (argv: ArgumentsCamelCase<ShowMetadataOptions>) => {
           const {config, configDir} = requireAppleConfig(argv);
           const client = new AppStoreConnectClient(config, configDir);
 
           const metadata = await client.getAppMetadata(argv.bundleId, argv.from);
-          outputMetadata(metadata, argv.locale, argv.from, {json: argv.json});
+          if (argv.forUpdate) {
+            outputUpdateMetadata(metadata, {json: argv.json});
+          } else {
+            outputMetadata(metadata, argv.locale, argv.from, {json: argv.json});
+          }
         },
       })
       .command({
@@ -152,7 +164,7 @@ const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
           const version = await client.createVersion(
             argv.bundleId,
             argv.versionString,
-            argv.platform
+            argv.platform,
           );
           outputVersion(version, {json: argv.json});
         },
@@ -169,7 +181,8 @@ const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
             })
             .option('filename', {
               alias: 'f',
-              describe: 'JSON file containing metadata (same format as show-metadata output)',
+              describe:
+                'JSON file containing metadata (same format as show-metadata output)',
               type: 'string',
               demandOption: true,
             }),
@@ -182,9 +195,12 @@ const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
             localizations: LocalizedMetadata[];
           };
 
-          if (!metadata.localizations || !Array.isArray(metadata.localizations)) {
+          if (
+            !metadata.localizations ||
+            !Array.isArray(metadata.localizations)
+          ) {
             throw new Error(
-              'Invalid metadata file: expected "localizations" array'
+              'Invalid metadata file: expected "localizations" array',
             );
           }
 
@@ -192,13 +208,13 @@ const appleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
           const invalidLocales = validateAppleLocales(locales);
           if (invalidLocales.length > 0) {
             throw new Error(
-              `Invalid locale(s) for App Store Connect: ${invalidLocales.join(', ')}`
+              `Invalid locale(s) for App Store Connect: ${invalidLocales.join(', ')}`,
             );
           }
 
           const result = await client.setMetadata(
             argv.bundleId,
-            metadata.localizations
+            metadata.localizations,
           );
           outputSetMetadataResult(result, {json: argv.json});
         },
@@ -309,14 +325,14 @@ const googleCommand: CommandModule<GlobalOptions, GlobalOptions> = {
           const invalidLocales = validateGooglePlayLocales(locales);
           if (invalidLocales.length > 0) {
             throw new Error(
-              `Invalid locale(s) for Google Play: ${invalidLocales.join(', ')}`
+              `Invalid locale(s) for Google Play: ${invalidLocales.join(', ')}`,
             );
           }
 
           const result = await client.setMetadata(
             argv.packageName,
             metadata.listings,
-            {changesNotSentForReview: argv.changesNotSentForReview}
+            {changesNotSentForReview: argv.changesNotSentForReview},
           );
           outputGooglePlaySetMetadataResult(result, {json: argv.json});
         },

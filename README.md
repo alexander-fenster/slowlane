@@ -83,6 +83,10 @@ npx slowlane apple get-metadata com.example.app en-US
 # Save metadata from live version to JSON
 npx slowlane apple get-metadata com.example.app --from live --json > metadata.json
 
+# If you only need to update What's New and Promotional Text (common for new releases),
+# use --for-update to get a smaller JSON with just those fields:
+npx slowlane apple get-metadata com.example.app --from live --for-update --json > update.json
+
 # Create a new version
 npx slowlane apple create-version com.example.app 2.0.0
 

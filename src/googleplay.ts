@@ -64,13 +64,13 @@ export class GooglePlayClient {
         headers: {
           Authorization: `Bearer ${accessToken.token}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Google Play API error: ${response.status} ${response.statusText}\n${errorText}`
+        `Google Play API error: ${response.status} ${response.statusText}\n${errorText}`,
       );
     }
 
@@ -133,7 +133,7 @@ export class GooglePlayClient {
   async setMetadata(
     packageName: string,
     listings: GooglePlayListing[],
-    options?: {changesNotSentForReview?: boolean}
+    options?: {changesNotSentForReview?: boolean},
   ): Promise<GooglePlaySetMetadataResult> {
     // Create an edit to make changes
     const editResponse = await this.publisher.edits.insert({packageName});
@@ -150,10 +150,10 @@ export class GooglePlayClient {
         {
           packageName,
           editId,
-        }
+        },
       );
       const existingLanguages = new Set(
-        (existingListingsResponse.data.listings ?? []).map(l => l.language!)
+        (existingListingsResponse.data.listings ?? []).map(l => l.language!),
       );
 
       for (const listing of listings) {

@@ -65,11 +65,23 @@ export interface MetadataOutput {
   localizations: LocalizedMetadata[];
 }
 
+export interface UpdateMetadataLocalization {
+  locale: string;
+  whatsNew?: string;
+  promotionalText?: string;
+}
+
+export interface UpdateMetadataOutput {
+  name: string;
+  bundleId: string;
+  localizations: UpdateMetadataLocalization[];
+}
+
 export function outputMetadata(
   metadata: AppMetadata,
   locale: string | undefined,
   from: 'live' | 'editable' = 'editable',
-  options: OutputOptions
+  options: OutputOptions,
 ): void {
   const showFull = !!locale;
   const localizations = locale
@@ -87,7 +99,7 @@ export function outputMetadata(
     } else {
       console.error(`Locale not found: ${locale}`);
       console.log(
-        `Available locales: ${metadata.localizations.map(l => l.locale).join(', ')}`
+        `Available locales: ${metadata.localizations.map(l => l.locale).join(', ')}`,
       );
     }
     process.exit(1);
@@ -133,12 +145,12 @@ export function outputMetadata(
   console.log(`Primary Locale: ${data.primaryLocale}`);
   if (data.liveVersion) {
     console.log(
-      `Live Version: ${data.liveVersion.versionString} (${data.liveVersion.state})`
+      `Live Version: ${data.liveVersion.versionString} (${data.liveVersion.state})`,
     );
   }
   if (data.editableVersion) {
     console.log(
-      `Editable Version: ${data.editableVersion.versionString} (${data.editableVersion.state})`
+      `Editable Version: ${data.editableVersion.versionString} (${data.editableVersion.state})`,
     );
   }
   console.log(`Showing localizations from: ${data.localizationsFrom} version`);
@@ -191,7 +203,7 @@ export interface VersionOutput {
 
 export function outputVersion(
   version: AppStoreVersion,
-  options: OutputOptions
+  options: OutputOptions,
 ): void {
   const data: VersionOutput = {
     id: version.id,
@@ -213,9 +225,52 @@ export function outputVersion(
   console.log(`  Created: ${data.createdDate}`);
 }
 
+export function outputUpdateMetadata(
+  metadata: AppMetadata,
+  options: OutputOptions,
+): void {
+  const localizations: UpdateMetadataLocalization[] =
+    metadata.localizations.map(loc => {
+      const result: UpdateMetadataLocalization = {locale: loc.locale};
+      if (loc.whatsNew) result.whatsNew = loc.whatsNew;
+      if (loc.promotionalText) result.promotionalText = loc.promotionalText;
+      return result;
+    });
+
+  const data: UpdateMetadataOutput = {
+    name: metadata.app.attributes.name,
+    bundleId: metadata.app.attributes.bundleId,
+    localizations,
+  };
+
+  if (options.json) {
+    outputJson(data);
+    return;
+  }
+
+  console.log(`App: ${data.name}`);
+  console.log(`Bundle ID: ${data.bundleId}`);
+  console.log();
+
+  for (const loc of localizations) {
+    console.log(`--- ${loc.locale} ---`);
+    if (loc.whatsNew) {
+      const truncated =
+        loc.whatsNew.length > 100
+          ? loc.whatsNew.substring(0, 100) + '...'
+          : loc.whatsNew;
+      console.log(`What's New: ${truncated}`);
+    }
+    if (loc.promotionalText) {
+      console.log(`Promotional Text: ${loc.promotionalText}`);
+    }
+    console.log();
+  }
+}
+
 export function outputSetMetadataResult(
   result: SetMetadataResult,
-  options: OutputOptions
+  options: OutputOptions,
 ): void {
   if (options.json) {
     outputJson(result);
@@ -237,29 +292,29 @@ export function outputSetMetadataResult(
 
   if (result.appInfoLocalizationsUpdated.length > 0) {
     console.log(
-      `  App info localizations updated: ${result.appInfoLocalizationsUpdated.join(', ')}`
+      `  App info localizations updated: ${result.appInfoLocalizationsUpdated.join(', ')}`,
     );
   }
   if (result.appInfoLocalizationsCreated.length > 0) {
     console.log(
-      `  App info localizations created: ${result.appInfoLocalizationsCreated.join(', ')}`
+      `  App info localizations created: ${result.appInfoLocalizationsCreated.join(', ')}`,
     );
   }
   if (result.versionLocalizationsUpdated.length > 0) {
     console.log(
-      `  Version localizations updated: ${result.versionLocalizationsUpdated.join(', ')}`
+      `  Version localizations updated: ${result.versionLocalizationsUpdated.join(', ')}`,
     );
   }
   if (result.versionLocalizationsCreated.length > 0) {
     console.log(
-      `  Version localizations created: ${result.versionLocalizationsCreated.join(', ')}`
+      `  Version localizations created: ${result.versionLocalizationsCreated.join(', ')}`,
     );
   }
 }
 
 export function outputGooglePlayAppList(
   apps: GooglePlayApp[],
-  options: OutputOptions
+  options: OutputOptions,
 ): void {
   if (options.json) {
     outputJson(apps);
@@ -277,7 +332,7 @@ export function outputGooglePlayAppList(
 export function outputGooglePlayMetadata(
   metadata: GooglePlayMetadata,
   language: string | undefined,
-  options: OutputOptions
+  options: OutputOptions,
 ): void {
   const showFull = !!language;
   const listings = language
@@ -295,7 +350,7 @@ export function outputGooglePlayMetadata(
     } else {
       console.error(`Language not found: ${language}`);
       console.log(
-        `Available languages: ${metadata.listings.map(l => l.language).join(', ')}`
+        `Available languages: ${metadata.listings.map(l => l.language).join(', ')}`,
       );
     }
     process.exit(1);
@@ -342,7 +397,7 @@ export function outputGooglePlayMetadata(
 
 export function outputGooglePlaySetMetadataResult(
   result: GooglePlaySetMetadataResult,
-  options: OutputOptions
+  options: OutputOptions,
 ): void {
   if (options.json) {
     outputJson(result);
