@@ -269,7 +269,8 @@ export class AppStoreConnectClient {
     const response = await this.request<AppsResponse>(
       `/apps?filter[bundleId]=${encodeURIComponent(bundleId)}`,
     );
-    return response.data[0] ?? null;
+    const app = response.data.find(a => a.attributes.bundleId === bundleId);
+    return app ?? null;
   }
 
   async getAppMetadata(
